@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { UploadCloud, FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle, AlertCircle, Loader2, HelpCircle, X, Coffee } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { GoogleGenAI } from '@google/genai';
 import Markdown from 'react-markdown';
@@ -30,6 +30,8 @@ export default function App() {
   const [notionPageId, setNotionPageId] = useState(() => getLocalStorage('notionPageId'));
   const [isExportingNotion, setIsExportingNotion] = useState(false);
   const [notionSuccessUrl, setNotionSuccessUrl] = useState('');
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isCoffeeOpen, setIsCoffeeOpen] = useState(false);
   
   const markdownRef = useRef<HTMLDivElement>(null);
 
@@ -232,6 +234,109 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#0b0c10] text-[#f2f2f5] font-sans relative overflow-x-hidden p-4 sm:p-8 flex justify-center items-center">
+      {/* Coffee Button */}
+      <button 
+        onClick={() => setIsCoffeeOpen(true)}
+        className="fixed top-4 left-4 z-50 p-3 bg-[rgba(25,26,36,0.6)] backdrop-blur-md border border-white/10 hover:border-amber-500/50 hover:bg-[rgba(25,26,36,0.9)] text-[#a0a0b8] hover:text-amber-400 rounded-full transition-all shadow-xl"
+        title="Postaw kawę"
+      >
+        <Coffee size={24} />
+      </button>
+
+      {/* Coffee Modal */}
+      {isCoffeeOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setIsCoffeeOpen(false)}>
+          <div 
+            className="bg-[#191a24] border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center p-6 border-b border-white/5 bg-black/20">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <Coffee size={20} className="text-amber-400" /> Postaw Kawę
+              </h3>
+              <button 
+                onClick={() => setIsCoffeeOpen(false)}
+                className="text-[#a0a0b8] hover:text-white transition-colors"
+                title="Zamknij"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-center">
+              <p className="text-[#c0c0d8] text-sm leading-relaxed">
+                Podoba Ci się ta aplikacja? Będzie mi bardzo miło, jeśli zechcesz wirtualnie postawić mi kawę w ramach podziękowania! ☕
+              </p>
+              <a 
+                href="https://buy.stripe.com/9B6bJ27KpgsvgRUcf8aMU00"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 w-full px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-colors shadow-lg shadow-amber-500/20 mt-4"
+              >
+                <Coffee size={18} />
+                Postaw kawkę za apkę
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Help Button */}
+      <button 
+        onClick={() => setIsHelpOpen(true)}
+        className="fixed top-4 right-4 z-50 p-3 bg-[rgba(25,26,36,0.6)] backdrop-blur-md border border-white/10 hover:border-violet-500/50 hover:bg-[rgba(25,26,36,0.9)] text-[#a0a0b8] hover:text-violet-400 rounded-full transition-all shadow-xl"
+        title="Instrukcja obsługi"
+      >
+        <HelpCircle size={24} />
+      </button>
+
+      {/* Help Modal */}
+      {isHelpOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setIsHelpOpen(false)}>
+          <div 
+            className="bg-[#191a24] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center p-6 border-b border-white/5 bg-black/20">
+              <h3 className="text-xl font-semibold text-white flex items-center gap-2">
+                <HelpCircle size={20} className="text-violet-400" /> Instrukcja Obsługi
+              </h3>
+              <button 
+                onClick={() => setIsHelpOpen(false)}
+                className="text-[#a0a0b8] hover:text-white transition-colors"
+                title="Zamknij"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 text-sm leading-relaxed text-[#c0c0d8]">
+              <p>
+                <strong className="text-white">1. Klucz API Gemini:</strong> Zdobądź darmowy klucz ze strony Google AI Studio i upewnij się, że wpisujesz go w panelu. Przeglądarka zapamięta go automatycznie!
+              </p>
+              <p>
+                <strong className="text-white">2. Wybierz plik:</strong> Przeciągnij swój artykuł naukowy w formacie PDF do widocznego poniżej pola.
+              </p>
+              <p>
+                <strong className="text-white">3. Tłumaczenie:</strong> Kliknij zielony przycisk i poczekaj. Sztuczna Inteligencja odczyta dokument, usunie błędy techniczne z PDF (tzw. OCR OCR noise) i przetłumaczy dokument, ignorując bibliografię.
+              </p>
+              <p>
+                <strong className="text-white">4. Pobieranie wyników:</strong> Gdy ekran się zmieni, możesz pobrać tłumaczenie na komputer w formie tekstowej (Markdown) lub jako wygenerowany plik PDF.
+              </p>
+              <p>
+                <strong className="text-white">5. Zapis w Notion (Opcjonalnie):</strong> Jeśli chcesz wysyłać tłumaczenia prosto do Notion: klucz API zdobądź tworząc własną integrację. Jako pole "ID Strony" możesz po prostu <b>wkleić cały link (adres URL)</b> do docelowej notatki. <br/><br/><b>Ważne:</b> w samym Notion musisz wpuścić tam naszą aplikację! Kliknij w prawy górny róg docelowej strony (ikona z trzema kropkami), wybierz <b>"Add connections"</b> i kliknij nazwę swojej integracji. Bez tego program dostanie komunikat o braku dostępu.
+              </p>
+            </div>
+            <div className="p-6 pt-0 flex justify-end">
+              <button 
+                onClick={() => setIsHelpOpen(false)}
+                className="px-6 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-medium transition-colors"
+              >
+                Rozumiem!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background Effects */}
       <div className="fixed inset-0 z-0 pointer-events-none" style={{
         backgroundImage: 'radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.15) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(45, 212, 191, 0.1) 0px, transparent 50%)'

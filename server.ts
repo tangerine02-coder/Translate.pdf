@@ -62,7 +62,15 @@ async function startServer() {
           if (p.startsWith('# ')) { type = 'heading_1'; content = p.replace(/^#\s/, ''); }
           else if (p.startsWith('## ')) { type = 'heading_2'; content = p.replace(/^##\s/, ''); }
           else if (p.startsWith('### ')) { type = 'heading_3'; content = p.replace(/^###\s/, ''); }
+          else if (p.startsWith('#### ')) { type = 'heading_3'; content = p.replace(/^####\s/, ''); } // Notion doesn't have H4, map to H3
           else if (p.startsWith('- ') || p.startsWith('* ')) { type = 'bulleted_list_item'; content = p.replace(/^[-*]\s/, ''); }
+
+          // Basic inline formatting: check if whole line is **bold**
+          let isBold = false;
+          if (content.startsWith('**') && content.endsWith('**')) {
+            isBold = true;
+            content = content.replace(/^\*\*(.*?)\*\*$/, '$1');
+          }
 
           const chunks = content.match(/.{1,2000}/g) || [];
           
@@ -73,7 +81,10 @@ async function startServer() {
               object: 'block',
               type: currentType,
               [currentType]: {
-                rich_text: [{ text: { content: chunk } }]
+                rich_text: [{ 
+                  text: { content: chunk },
+                  annotations: { bold: isBold }
+                }]
               }
             });
           }
