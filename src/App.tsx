@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { UploadCloud, FileText, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { GoogleGenAI } from '@google/genai';
@@ -7,7 +7,7 @@ import Markdown from 'react-markdown';
 import html2pdf from 'html2pdf.js';
 
 export default function App() {
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('geminiApiKey') || '');
   const [model, setModel] = useState('gemini-3.1-pro-preview');
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -17,12 +17,25 @@ export default function App() {
   const [originalMarkdown, setOriginalMarkdown] = useState('');
   const [translatedMarkdown, setTranslatedMarkdown] = useState('');
   
-  const [notionApiKey, setNotionApiKey] = useState('');
-  const [notionPageId, setNotionPageId] = useState('');
+  const [notionApiKey, setNotionApiKey] = useState(() => localStorage.getItem('notionApiKey') || '');
+  const [notionPageId, setNotionPageId] = useState(() => localStorage.getItem('notionPageId') || '');
   const [isExportingNotion, setIsExportingNotion] = useState(false);
   const [notionSuccessUrl, setNotionSuccessUrl] = useState('');
   
   const markdownRef = useRef<HTMLDivElement>(null);
+
+  // Save to local storage whenever keys change
+  useEffect(() => {
+    localStorage.setItem('geminiApiKey', apiKey);
+  }, [apiKey]);
+
+  useEffect(() => {
+    localStorage.setItem('notionApiKey', notionApiKey);
+  }, [notionApiKey]);
+
+  useEffect(() => {
+    localStorage.setItem('notionPageId', notionPageId);
+  }, [notionPageId]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
