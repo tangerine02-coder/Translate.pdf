@@ -7,7 +7,16 @@ import Markdown from 'react-markdown';
 import html2pdf from 'html2pdf.js';
 
 export default function App() {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('geminiApiKey') || '');
+  const getLocalStorage = (key: string) => {
+    try {
+      return localStorage.getItem(key) || '';
+    } catch (e) {
+      console.warn('LocalStorage is not available', e);
+      return '';
+    }
+  };
+
+  const [apiKey, setApiKey] = useState(() => getLocalStorage('geminiApiKey'));
   const [model, setModel] = useState('gemini-3.1-pro-preview');
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -17,8 +26,8 @@ export default function App() {
   const [originalMarkdown, setOriginalMarkdown] = useState('');
   const [translatedMarkdown, setTranslatedMarkdown] = useState('');
   
-  const [notionApiKey, setNotionApiKey] = useState(() => localStorage.getItem('notionApiKey') || '');
-  const [notionPageId, setNotionPageId] = useState(() => localStorage.getItem('notionPageId') || '');
+  const [notionApiKey, setNotionApiKey] = useState(() => getLocalStorage('notionApiKey'));
+  const [notionPageId, setNotionPageId] = useState(() => getLocalStorage('notionPageId'));
   const [isExportingNotion, setIsExportingNotion] = useState(false);
   const [notionSuccessUrl, setNotionSuccessUrl] = useState('');
   
@@ -26,15 +35,15 @@ export default function App() {
 
   // Save to local storage whenever keys change
   useEffect(() => {
-    localStorage.setItem('geminiApiKey', apiKey);
+    try { localStorage.setItem('geminiApiKey', apiKey); } catch (e) {}
   }, [apiKey]);
 
   useEffect(() => {
-    localStorage.setItem('notionApiKey', notionApiKey);
+    try { localStorage.setItem('notionApiKey', notionApiKey); } catch (e) {}
   }, [notionApiKey]);
 
   useEffect(() => {
-    localStorage.setItem('notionPageId', notionPageId);
+    try { localStorage.setItem('notionPageId', notionPageId); } catch (e) {}
   }, [notionPageId]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
