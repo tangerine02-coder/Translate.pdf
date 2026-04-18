@@ -2,6 +2,8 @@
 
 Aplikacja do tłumaczenia plików PDF wspierana przez sztuczną inteligencję (Google Gemini) z opcjonalnym eksportem bezpośrednio do bazy Notion.
 
+![Podgląd aplikacji](preview.png)
+
 ## Jak pobrać aplikację z GitHuba?
 
 Możesz pobrać ten kod na swój komputer na dwa sposoby:
