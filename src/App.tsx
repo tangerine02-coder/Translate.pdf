@@ -14,6 +14,7 @@ export default function App() {
   const [isSuccess, setIsSuccess] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [error, setError] = useState('');
+  const [originalMarkdown, setOriginalMarkdown] = useState('');
   const [translatedMarkdown, setTranslatedMarkdown] = useState('');
   
   const [notionApiKey, setNotionApiKey] = useState('');
@@ -91,19 +92,29 @@ export default function App() {
                 }
               },
               {
-                text: 'Jesteś ekspertem w tłumaczeniu artykułów naukowych oraz zaawansowanym korektorem tekstu (proofreader). Przetłumacz załączony artykuł naukowy na język polski. \n\nZasady:\n1. ZIGNORUJ I NAPRAW BŁĘDY OCR: Plik PDF może zawierać błędy odczytu (tzw. halucynacje znakowe, dziwne symbole, ucięte słowa, połączone wyrazy, artefakty techniczne). Twoim zadaniem jest domyślić się prawidłowego słowa i wygenerować czysty, poprawny tekst. Usuń wszelkie "krzaczki" i nielogiczne ciągi znaków.\n2. Zachowaj strukturę i formatowanie dokumentu używając znaczników Markdown (nagłówki, akapity, listy, pogrubienia).\n3. Przetłumacz tytuł, abstrakt, wstęp i wszystkie główne sekcje.\n4. POMIŃ bibliografię (References/Bibliography) - nie tłumacz jej i nie dołączaj do wyniku.\n5. Zwróć TYLKO przetłumaczony tekst w formacie Markdown, bez żadnych dodatkowych komentarzy na początku czy na końcu.'
+                text: 'Jesteś ekspertem w tłumaczeniu artykułów naukowych. Twoim zadaniem jest wyodrębnienie oryginalnego tekstu oraz jego przetłumaczenie. \n\nZasady:\n1. ZACHOWAJ ORYGINAŁ: Wyekstrahuj teksty w języku angielskim dokładnie tak, jak występują w dokumencie. NIE ZMIENIAJ ani jednego słowa. Nałóż jedynie formatowanie Markdown, aby poprawnie odtworzyć strukturę (nagłówki, listy, akapity).\n2. PRZETŁUMACZ: Przetłumacz tak przygotowany tekst na język polski, zachowując naukowy i naturalny styl.\n3. POMIŃ BIBLIOGRAFIĘ: Nie uwzględniaj sekcji References/Bibliography w żadnej z wersji.\n4. BARDZO WAŻNE: Zwróć wynik w dwóch częściach, oddzielając je od siebie dokładnie ciągiem znaków "===TRANSLATED===". Najpierw wypisz w 100% oryginalny tekst (tylko sformatowany w Markdown), następnie wstaw "===TRANSLATED===", a poniżej podaj polskie tłumaczenie. Nie dodawaj żadnych dodatkowych komentarzy.'
               }
             ]
           }
         ]
       });
 
-      const markdown = response.text;
-      if (!markdown) {
+      const responseText = response.text;
+      if (!responseText) {
         throw new Error('Model nie zwrócił żadnego tekstu.');
       }
 
-      setTranslatedMarkdown(markdown);
+      let original = '';
+      let translated = responseText;
+
+      if (responseText.includes('===TRANSLATED===')) {
+        const parts = responseText.split('===TRANSLATED===');
+        original = parts[0].trim();
+        translated = parts[1].trim();
+      }
+
+      setOriginalMarkdown(original);
+      setTranslatedMarkdown(translated);
       setIsProcessing(false);
       setIsSuccess(true);
 
@@ -175,7 +186,8 @@ export default function App() {
           apiKey: notionApiKey,
           pageId: notionPageId,
           title: `Tłumaczenie: ${file?.name || 'Dokument'}`,
-          markdown: translatedMarkdown,
+          originalMarkdown: originalMarkdown,
+          translatedMarkdown: translatedMarkdown,
         }),
       });
 
