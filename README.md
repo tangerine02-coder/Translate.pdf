@@ -44,6 +44,11 @@ Zabezpieczenia Windows (tzw. PowerShell) blokują czasem uruchamianie jakichkolw
 * Otwórz zwykły wiersz polecenia (`cmd`) zamiast PowerShell. Wejdź do folderu z aplikacją, u góry w pasku ze ścieżką (gdzie jest napisane np. `C:\Users\...\Translate-pdf`) skasuj wszystko, wpisz słowo `cmd` i wciśnij Enter. W nowym, czarnym oknie wpisz z powrotem `npm install`.
 * ALBO otwórz PowerShell jako administrator i wpisz komendę: `Set-ExecutionPolicy RemoteSigned`, zatwierdzając klikając literę "A" lub "Y" na klawiaturze.
 
+**Błąd podczas budowania (.exe) "Cannot create symbolic link / Klient nie ma wymaganych uprawnień":**
+System Windows domyślnie zabrania zwykłym programom tworzenia tzw. "linków symbolicznych" (skrótów-widm) z powodów bezpieczeństwa. Pakiet tworzący aplikację `.exe` ich niestety wymaga. 
+* **Rozwiązanie 1:** (Najszybsze) Uruchom aplikację Wiersz Polecenia (`cmd`) lub PowerShell jako **Administrator** (Prawy klik na ikonę w Menu Start -> Uruchom jako administrator). Następnie za pomocą komendy `cd` przejdź do folderu z aplikacją (np. `cd C:\Sciezka\Do\Folderu`) i wpisz obok komendę `npm run build:desktop`.
+* **Rozwiązanie 2:** Włącz "Tryb dewelopera" w systemie Windows. Wpisz w lupkę na pasku zadań (lub w Menu Start) "Ustawienia trybu dewelopera" (Developer settings) i aktywuj przełącznik "Tryb dewelopera". Od teraz komenda będzie działać w każdym zwykłym okienku.
+
 ## Aplikacja komputerowa (.exe)
 Jeśli chcesz stworzyć z tego prawdziwy, "klikalny" program na Windows (.exe) - przygotowałem automatyczny skrypt.
 Gdy okno Twojego Wiersza Polecenia / Terminala jest otwarte (i nic w nim nie działa w danym momencie) wpisz po prostu:

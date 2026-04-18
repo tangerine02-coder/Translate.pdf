@@ -20,8 +20,9 @@ function createWindow() {
 
 app.whenReady().then(() => {
   const serverPath = path.join(__dirname, 'server.js');
-  serverProcess = spawn('node', [serverPath], { 
-    env: { ...process.env, NODE_ENV: 'production' } 
+  // Używamy wbudowanego w Electrona silnika Node.js zamiast systemowego (naprawia błąd białego ekranu)
+  serverProcess = spawn(process.execPath, [serverPath], { 
+    env: { ...process.env, NODE_ENV: 'production', ELECTRON_RUN_AS_NODE: '1' } 
   });
   createWindow();
 });
