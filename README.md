@@ -37,5 +37,20 @@ Oto jak uruchomić aplikację krok po kroku:
    `npm run dev`
 4. Aplikacja powinna się uruchomić. W oknie tekstowym pojawi się link (np. `http://localhost:5173/`). Skopiuj go i wklej do swojej zwykłej przeglądarki internetowej (np. Chrome czy Edge).
 
+### Częste problemy (Troubleshooting)
+
+**Błąd na systemie Windows "running scripts is disabled on this system":**
+Zabezpieczenia Windows (tzw. PowerShell) blokują czasem uruchamianie jakichkolwiek poleceń. Jak to naprawić?
+* Otwórz zwykły wiersz polecenia (`cmd`) zamiast PowerShell. Wejdź do folderu z aplikacją, u góry w pasku ze ścieżką (gdzie jest napisane np. `C:\Users\...\Translate-pdf`) skasuj wszystko, wpisz słowo `cmd` i wciśnij Enter. W nowym, czarnym oknie wpisz z powrotem `npm install`.
+* ALBO otwórz PowerShell jako administrator i wpisz komendę: `Set-ExecutionPolicy RemoteSigned`, zatwierdzając klikając literę "A" lub "Y" na klawiaturze.
+
+## Aplikacja komputerowa (.exe)
+Jeśli chcesz stworzyć z tego prawdziwy, "klikalny" program na Windows (.exe) - przygotowałem automatyczny skrypt.
+Gdy okno Twojego Wiersza Polecenia / Terminala jest otwarte (i nic w nim nie działa w danym momencie) wpisz po prostu:
+```bash
+npm run build:desktop
+```
+Po 1-2 minutach program wygeneruje nowiuteńką aplikację jako instalator (lub plik wykonywalny ze wszystkim wbudowanym w środek). Na płycie głównego folderu pojawi się nowy folder o nazwie `release`, a w nim klikalny plik – `TranslatePDF Setup.exe`! Wyślij go znajomym! 
+
 ## Sponsor
 Jeśli ta aplikacja Ci się przydaje, możesz postawić twórcy wirtualną kawę korzystając z przycisku "Sponsor" na górze profilu! ☕
