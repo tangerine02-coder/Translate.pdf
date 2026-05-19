@@ -7,9 +7,9 @@
   "author": "TranslatePDF",
   "scripts": {
     "dev": "tsx server.ts",
-    "start": "node server.ts",
-    "build": "vite build",
-    "build:desktop": "npm run build && npx esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --external:express --external:@notionhq/client && npx esbuild electron.cjs --bundle --platform=node --format=cjs --external:electron --outfile=dist/electron.cjs && npx electron-builder --win",
+    "start": "node dist/server.js",
+    "build": "vite build && npx -y esbuild server.ts --bundle --platform=node --format=esm --outfile=dist/server.js --external:express --external:@notionhq/client",
+    "build:desktop": "npm run build && npx -y esbuild electron.cjs --bundle --platform=node --format=cjs --external:electron --outfile=dist/electron.cjs && npx electron-builder --win",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
@@ -24,6 +24,7 @@
     "html2pdf.js": "^0.14.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
+    "pdf-lib": "^1.17.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-dropzone": "^15.0.0",

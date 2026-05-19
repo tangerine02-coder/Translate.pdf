@@ -3,6 +3,7 @@ import { UploadCloud, FileText, CheckCircle, AlertCircle, Loader2, HelpCircle, X
 import { useDropzone } from 'react-dropzone';
 import { GoogleGenAI } from '@google/genai';
 import Markdown from 'react-markdown';
+import { PDFDocument } from 'pdf-lib';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 
@@ -17,7 +18,8 @@ export default function App() {
   };
 
   const [apiKey, setApiKey] = useState(() => getLocalStorage('geminiApiKey'));
-  const [model, setModel] = useState('gemini-3.1-pro-preview');
+  const [model, setModel] = useState('gemini-3-flash-preview');
+  const [sourceLang, setSourceLang] = useState<'en' | 'de'>('en');
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -80,6 +82,7 @@ export default function App() {
       setError('Proszę wybrać plik PDF.');
       return;
     }
+    
     if (!apiKey) {
       setError('Proszę podać klucz API Gemini.');
       return;
@@ -89,56 +92,111 @@ export default function App() {
     setIsSuccess(false);
     setError('');
     setTranslatedMarkdown('');
-    setStatusText('Odczytywanie pliku PDF...');
+    setStatusText('Analizowanie struktury pliku PDF...');
 
     try {
-      // 1. Read file as base64
+      // 1. Read file as array buffer
       const arrayBuffer = await file.arrayBuffer();
-      const base64 = btoa(
-        new Uint8Array(arrayBuffer)
-          .reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
+      
+      // Load PDF to count pages and split if necessary
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pageCount = pdfDoc.getPageCount();
+      const PAGES_PER_CHUNK = 12; // Safe batch size
+      
+      // Check if total file size is completely unreasonable (e.g., > 100MB) to prevent browser tab crash
+      const MAX_TOTAL_SIZE = 100 * 1024 * 1024;
+      if (file.size > MAX_TOTAL_SIZE) {
+        throw new Error(`Plik jest ekstremalnie duży (${(file.size / 1024 / 1024).toFixed(1)} MB). Proszę wgrać mniejszy plik, aby uniknąć przeciążenia pamięci przeglądarki.`);
+      }
 
-      setStatusText('Wysyłanie do modelu AI (to może potrwać kilka minut)...');
-
-      // 2. Call Gemini API
+      const chunkCount = Math.ceil(pageCount / PAGES_PER_CHUNK);
       const ai = new GoogleGenAI({ apiKey: apiKey });
-      const response = await ai.models.generateContent({
-        model: model,
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                inlineData: {
-                  mimeType: 'application/pdf',
-                  data: base64,
+      
+      const langInstruction = sourceLang === 'de'
+        ? 'Wyekstrahuj język niemiecki'
+        : 'Wyekstrahuj język angielski';
+
+      const promptText = `Jesteś ekspertem w tłumaczeniu artykułów naukowych. Twoim zadaniem jest wyodrębnienie tekstu z PDF, pozbycie się śmieci oraz jego przetłumaczenie.\n\nZasady:\n1. WYCZYŚĆ ORYGINAŁ Z BŁĘDÓW OCR: ${langInstruction}. Zachowaj oryginalne słownictwo, ALE bezwzględnie usun "śmieci" z odczytu PDF, tzn. przypadkowe i niepotrzebne znaki matematyczne/techniczne (np. ucięte litery, symbole $, &, !, nawiasy, ułamki, numery potęg). Oczyść z nich tekst, by był naturalnie czytelny, płynny i ciągły.\n2. PRZETŁUMACZ: Przetłumacz doczyszczony tekst na język polski (naukowy, naturalny styl).\n3. POMIŃ BIBLIOGRAFIĘ: Nie uwzględniaj sekcji References/Bibliography/Literaturverzeichnis.\n4. PROSTE FORMATOWANIE: Nie używaj tabelek, znaczników kodu ani składni LaTeX. Używaj wyłącznie czystego tekstu ułożonego w akapity oraz głównych nagłówków.\n5. BARDZO WAŻNE: Zwróć wynik w dwóch częściach oddzielonych ciągiem znaków "===TRANSLATED===". Najpierw WYCZYSZCZONY oryginał, następnie "===TRANSLATED===", a pod spodem przetłumaczony tekst. Nie dodawaj niczego więcej.`;
+
+      let combinedOriginalArray: string[] = new Array(chunkCount).fill('');
+      let combinedTranslatedArray: string[] = new Array(chunkCount).fill('');
+
+      const processChunk = async (i: number) => {
+        const startPage = i * PAGES_PER_CHUNK;
+        const endPage = Math.min((i + 1) * PAGES_PER_CHUNK, pageCount);
+        
+        setStatusText(chunkCount > 1 
+          ? `Tłumaczenie części ${i + 1} z ${chunkCount} (strony ${startPage + 1}-${endPage})...`
+          : 'Wysyłanie do modelu AI (to może potrwać kilka minut)...'
+        );
+
+        // Create a new PDF for just this chunk
+        const chunkPdf = await PDFDocument.create();
+        const pageIndices = Array.from({ length: endPage - startPage }, (_, idx) => startPage + idx);
+        const copiedPages = await chunkPdf.copyPages(pdfDoc, pageIndices);
+        copiedPages.forEach((p) => chunkPdf.addPage(p));
+
+        const chunkBytes = await chunkPdf.save();
+        
+        // Safe Base64 conversion for browser avoiding call stack limits
+        let binary = '';
+        const bytes = new Uint8Array(chunkBytes);
+        const len = bytes.byteLength;
+        for (let j = 0; j < len; j++) {
+            binary += String.fromCharCode(bytes[j]);
+        }
+        const base64 = btoa(binary);
+
+        const response = await ai.models.generateContent({
+          model: model,
+          contents: [
+            {
+              role: 'user',
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: 'application/pdf',
+                    data: base64,
+                  }
+                },
+                {
+                  text: promptText
                 }
-              },
-              {
-                text: 'Jesteś ekspertem w tłumaczeniu artykułów naukowych. Twoim zadaniem jest wyodrębnienie tekstu z PDF, pozbycie się śmieci oraz jego przetłumaczenie.\n\nZasady:\n1. WYCZYŚĆ ORYGINAŁ Z BŁĘDÓW OCR: Wyekstrahuj język angielski. Zachowaj oryginalne słownictwo, ALE bezwzględnie usun "śmieci" z odczytu PDF, tzn. przypadkowe i niepotrzebne znaki matematyczne/techniczne (np. ucięte litery, symbole $, &, !, nawiasy, ułamki, numery potęg). Oczyść z nich tekst, by był naturalnie czytelny, płynny i ciągły.\n2. PRZETŁUMACZ: Przetłumacz doczyszczony tekst na język polski (naukowy, naturalny styl).\n3. POMIŃ BIBLIOGRAFIĘ: Nie uwzględniaj sekcji References/Bibliography.\n4. PROSTE FORMATOWANIE: Nie używaj tabelek, znaczników kodu ani składni LaTeX. Używaj wyłącznie czystego tekstu ułożonego w akapity oraz głównych nagłówków.\n5. BARDZO WAŻNE: Zwróć wynik w dwóch częściach oddzielonych ciągiem znaków "===TRANSLATED===". Najpierw WYCZYSZCZONY oryginał, następnie "===TRANSLATED===", a pod spodem przetłumaczony tekst. Nie dodawaj niczego więcej.'
-              }
-            ]
-          }
-        ]
-      });
+              ]
+            }
+          ]
+        });
 
-      const responseText = response.text;
-      if (!responseText) {
-        throw new Error('Model nie zwrócił żadnego tekstu.');
+        const responseText = response.text;
+        if (!responseText) {
+          throw new Error(`Model nie zwrócił żadnego tekstu (Część ${i + 1}).`);
+        }
+
+        let original = '';
+        let translated = responseText;
+
+        if (responseText.includes('===TRANSLATED===')) {
+          const parts = responseText.split('===TRANSLATED===');
+          original = parts[0].trim();
+          translated = parts[1].trim();
+        }
+
+        combinedOriginalArray[i] = original;
+        combinedTranslatedArray[i] = translated;
+      };
+
+      // Control concurrency to max 3 requests in parallel to avoid "429 Too Many Requests"
+      const CONCURRENCY_LIMIT = 3;
+      for (let batchStart = 0; batchStart < chunkCount; batchStart += CONCURRENCY_LIMIT) {
+        const batchPromises = [];
+        for (let i = batchStart; i < Math.min(batchStart + CONCURRENCY_LIMIT, chunkCount); i++) {
+           batchPromises.push(processChunk(i));
+        }
+        await Promise.all(batchPromises);
       }
 
-      let original = '';
-      let translated = responseText;
-
-      if (responseText.includes('===TRANSLATED===')) {
-        const parts = responseText.split('===TRANSLATED===');
-        original = parts[0].trim();
-        translated = parts[1].trim();
-      }
-
-      setOriginalMarkdown(original);
-      setTranslatedMarkdown(translated);
+      setOriginalMarkdown(combinedOriginalArray.filter(Boolean).join('\n\n---\n\n'));
+      setTranslatedMarkdown(combinedTranslatedArray.filter(Boolean).join('\n\n---\n\n'));
       setIsProcessing(false);
       setIsSuccess(true);
 
@@ -154,6 +212,9 @@ export default function App() {
           const parsed = JSON.parse(errorMessage.substring(errorMessage.indexOf('{')));
           if (parsed.error && parsed.error.message) {
             errorMessage = parsed.error.message;
+            if (errorMessage.includes('Document size exceeds')) {
+              errorMessage = "Dokument jest zbyt duży dla modelu AI. Proszę usunąć plik, podzielić plik PDF na mniejsze części (najlepiej do kilkunastu stron) i spróbować ponownie.";
+            }
           }
         } catch (e) {
           // keep original if parsing fails
@@ -169,24 +230,38 @@ export default function App() {
     if (!markdownRef.current || !file) return;
 
     setIsProcessing(true);
-    setStatusText('Generowanie pliku PDF (to może chwilę potrwać)...');
+    setStatusText('Generowanie pliku PDF (zoptymalizowane pod duże pliki)...');
 
     const element = markdownRef.current;
+    
+    // Unhide the offscreen div temporarily for html2pdf to read it without display:none
+    element.parentElement!.style.left = '0px';
+    element.parentElement!.style.top = '0px';
+    element.parentElement!.style.position = 'fixed';
+    element.parentElement!.style.zIndex = '-1000';
+    element.parentElement!.style.display = 'block';
+
     const opt = {
-      margin:       15,
+      margin:       10,
       filename:     `PL_${file.name.replace('.pdf', '')}.pdf`,
-      image:        { type: 'jpeg' as const, quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true },
+      image:        { type: 'jpeg' as const, quality: 0.8 },
+      // By using scale 1 instead of 2, we avoid blowing up the browser memory and the "white cut-off pages" issue.
+      html2canvas:  { scale: 1, useCORS: true, logging: false },
       jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
       pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
+      // Restore offscreen styles
+      element.parentElement!.style.left = '-9999px';
+      element.parentElement!.style.top = '-9999px';
       setIsProcessing(false);
       setStatusText('');
     }).catch((err: any) => {
       console.error('PDF generation error:', err);
-      setError('Błąd podczas generowania pliku PDF. Spróbuj pobrać plik tekstowy.');
+      setError('Błąd podczas generowania pliku PDF. Dokument zwiera zbyt wiele tekstu do wyrenderowania w przeglądarce. Pobierz plik jako dokument tekstowy (.md).');
+      element.parentElement!.style.left = '-9999px';
+      element.parentElement!.style.top = '-9999px';
       setIsProcessing(false);
     });
   };
@@ -385,8 +460,8 @@ export default function App() {
                 onChange={(e) => setModel(e.target.value)}
                 className="w-full p-3 bg-black/20 border border-white/10 rounded-xl text-white text-sm focus:border-violet-500 focus:bg-black/40 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all appearance-none"
               >
-                <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Zalecany)</option>
-                <option value="gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+                <option value="gemini-3-flash-preview">Gemini 3 Flash Preview (Zalecany - Błyskawiczny)</option>
+                <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview (Wolniejszy, Dokładniejszy)</option>
                 <option value="gemini-3.1-flash-lite-preview">Gemini 3.1 Flash Lite Preview</option>
               </select>
             </div>
@@ -440,15 +515,23 @@ export default function App() {
               </p>
               
               {file && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleTranslate();
-                  }}
-                  className="mt-4 px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-medium transition-colors shadow-lg shadow-violet-500/20 flex items-center gap-2"
-                >
-                  Rozpocznij tłumaczenie
-                </button>
+                <div className="mt-4 flex flex-col gap-3 w-full max-w-xs mx-auto" onClick={(e) => e.stopPropagation()}>
+                  <select 
+                    value={sourceLang}
+                    onChange={(e) => setSourceLang(e.target.value as 'en' | 'de')}
+                    className="w-full p-2.5 bg-black/40 border border-white/20 hover:border-violet-500 rounded-xl text-white text-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 outline-none transition-all appearance-none cursor-pointer text-center"
+                    style={{ textAlignLast: 'center' }}
+                  >
+                    <option value="en">Angielski → Polski 🇬🇧</option>
+                    <option value="de">Niemiecki → Polski 🇩🇪</option>
+                  </select>
+                  <button 
+                    onClick={handleTranslate}
+                    className="w-full px-6 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-medium transition-colors shadow-lg shadow-violet-500/20 flex items-center justify-center gap-2"
+                  >
+                    Rozpocznij tłumaczenie
+                  </button>
+                </div>
               )}
             </div>
           ) : isProcessing || isExportingNotion ? (

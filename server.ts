@@ -14,6 +14,10 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
 
   // API routes FIRST
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
+
   app.post("/api/notion", async (req, res) => {
     try {
       let { apiKey, pageId, title, markdown, originalMarkdown, translatedMarkdown } = req.body;
@@ -134,19 +138,23 @@ async function startServer() {
       const leftColumnId = columnsResponse.results[0].id;
       const rightColumnId = columnsResponse.results[1].id;
 
-      // 4. Append blocks to columns in chunks of 100
-      const chunkSize = 100;
+      // 4. Append blocks to columns in chunks of 50 with rate limit delays
+      const chunkSize = 50;
+      const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+      
       for (let i = 0; i < originalBlocks.length; i += chunkSize) {
         await notion.blocks.children.append({
           block_id: leftColumnId,
           children: originalBlocks.slice(i, i + chunkSize),
         });
+        await sleep(500); // Prevent 429 Too Many Requests
       }
       for (let i = 0; i < translatedBlocks.length; i += chunkSize) {
         await notion.blocks.children.append({
           block_id: rightColumnId,
           children: translatedBlocks.slice(i, i + chunkSize),
         });
+        await sleep(500); // Prevent 429 Too Many Requests
       }
 
       res.json({ success: true, url: (newPage as any).url });
