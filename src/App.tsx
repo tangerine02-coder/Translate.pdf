@@ -18,8 +18,8 @@ export default function App() {
   };
 
   const [apiKey, setApiKey] = useState(() => getLocalStorage('geminiApiKey'));
-  const [model, setModel] = useState('gemini-3-flash-preview');
-  const [sourceLang, setSourceLang] = useState<'en' | 'de'>('en');
+  const [model, setModel] = useState(() => getLocalStorage('geminiModel') || 'gemini-3-flash-preview');
+  const [sourceLang, setSourceLang] = useState<'en' | 'de'>(() => (getLocalStorage('sourceLang') as 'en' | 'de') || 'en');
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -41,6 +41,14 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('geminiApiKey', apiKey); } catch (e) {}
   }, [apiKey]);
+
+  useEffect(() => {
+    try { localStorage.setItem('geminiModel', model); } catch (e) {}
+  }, [model]);
+
+  useEffect(() => {
+    try { localStorage.setItem('sourceLang', sourceLang); } catch (e) {}
+  }, [sourceLang]);
 
   useEffect(() => {
     try { localStorage.setItem('notionApiKey', notionApiKey); } catch (e) {}
@@ -116,7 +124,7 @@ export default function App() {
         ? 'Wyekstrahuj język niemiecki'
         : 'Wyekstrahuj język angielski';
 
-      const promptText = `Jesteś ekspertem w tłumaczeniu artykułów naukowych. Twoim zadaniem jest wyodrębnienie tekstu z PDF, pozbycie się śmieci oraz jego przetłumaczenie.\n\nZasady:\n1. WYCZYŚĆ ORYGINAŁ Z BŁĘDÓW OCR: ${langInstruction}. Zachowaj oryginalne słownictwo, ALE bezwzględnie usun "śmieci" z odczytu PDF, tzn. przypadkowe i niepotrzebne znaki matematyczne/techniczne (np. ucięte litery, symbole $, &, !, nawiasy, ułamki, numery potęg). Oczyść z nich tekst, by był naturalnie czytelny, płynny i ciągły.\n2. PRZETŁUMACZ WYLĄCZNIE NA POLSKI: Przetłumacz doczyszczony tekst NA JĘZYK POLSKI (naukowy, naturalny styl). Upewnij się, że nie zwracasz oryginalnego języka pod spodem znacznika. Tłumaczenie ma być bezwzględnie całkowicie po POLSKU.\n3. POMIŃ BIBLIOGRAFIĘ: Nie uwzględniaj sekcji References/Bibliography/Literaturverzeichnis.\n4. PROSTE FORMATOWANIE: Nie używaj tabelek, znaczników kodu ani składni LaTeX. Używaj wyłącznie czystego tekstu ułożonego w akapity oraz głównych nagłówków.\n5. BARDZO WAŻNE: Zwróć wynik w dwóch częściach oddzielonych ciągiem znaków "===TRANSLATED===". Najpierw WYCZYSZCZONY oryginał (np po angielsku), następnie DOKŁADNIE ciąg znaków "===TRANSLATED===", a pod spodem wyłącznie tekst PRZETŁUMACZONY NA JĘZYK POLSKI. Żadnych wstępów.`;
+      const promptText = `Jesteś ekspertem w tłumaczeniu artykułów naukowych. Twoim zadaniem jest wyodrębnienie tekstu z PDF, pozbycie się śmieci oraz jego przetłumaczenie.\n\nZasady:\n1. WYCZYŚĆ ORYGINAŁ Z BŁĘDÓW OCR: ${langInstruction}. Zachowaj oryginalne słownictwo, ALE bezwzględnie usun "śmieci" z odczytu PDF, tzn. przypadkowe i niepotrzebne znaki matematyczne/techniczne (np. ucięte litery, symbole $, &, !, nawiasy, ułamki, numery potęg). Oczyść z nich tekst, by był naturalnie czytelny, płynny i ciągły.\n2. PRZETŁUMACZ WYLĄCZNIE NA POLSKI: Przetłumacz doczyszczony tekst NA JĘZYK POLSKI (naukowy, naturalny styl). TWOJA ODPOWIEDŹ PO ZNACZNIKU ===TRANSLATED=== MUSI BYĆ CAŁKOWICIE W JĘZYKU POLSKIM.\n3. POMIŃ BIBLIOGRAFIĘ: Nie uwzględniaj sekcji References/Bibliography/Literaturverzeichnis.\n4. PROSTE FORMATOWANIE: Nie używaj tabelek, znaczników kodu ani składni LaTeX. Używaj wyłącznie czystego tekstu ułożonego w akapity oraz głównych nagłówków.\n5. BARDZO WAŻNE: Zwróć wynik w dwóch częściach oddzielonych JEDNYM ciągiem znaków "===TRANSLATED===". Najpierw WYCZYSZCZONY oryginał, następnie "===TRANSLATED===", a pod spodem wyłącznie tekst przetłumaczony na POLSKI. Nie dodawaj żadnych komentarzy ani wstępów.`;
 
       let combinedOriginalArray: string[] = new Array(chunkCount).fill('');
       let combinedTranslatedArray: string[] = new Array(chunkCount).fill('');
@@ -178,7 +186,7 @@ export default function App() {
         if (responseText.includes('===TRANSLATED===')) {
           const parts = responseText.split('===TRANSLATED===');
           original = parts[0].replace(/^```[a-z]*\n/, '').replace(/\n```$/, '').trim();
-          translated = parts[1].replace(/^```[a-z]*\n/, '').replace(/\n```$/, '').trim();
+          translated = parts[parts.length - 1].replace(/^```[a-z]*\n/, '').replace(/\n```$/, '').trim();
         }
 
         combinedOriginalArray[i] = original;
@@ -628,13 +636,13 @@ export default function App() {
           </div>
           <Markdown
             components={{
-              h1: ({node, ...props}) => <h1 style={{ fontSize: '24pt', fontWeight: 'bold', marginBottom: '16pt', marginTop: '24pt', pageBreakAfter: 'avoid', breakAfter: 'avoid' }} {...props} />,
-              h2: ({node, ...props}) => <h2 style={{ fontSize: '18pt', fontWeight: 'bold', marginBottom: '14pt', marginTop: '20pt', pageBreakAfter: 'avoid', breakAfter: 'avoid' }} {...props} />,
-              h3: ({node, ...props}) => <h3 style={{ fontSize: '14pt', fontWeight: 'bold', marginBottom: '12pt', marginTop: '16pt', pageBreakAfter: 'avoid', breakAfter: 'avoid' }} {...props} />,
-              p: ({node, ...props}) => <p style={{ marginBottom: '12pt', textAlign: 'justify', lineHeight: '1.6' }} {...props} />,
-              ul: ({node, ...props}) => <ul style={{ marginBottom: '12pt', paddingLeft: '24pt' }} {...props} />,
-              ol: ({node, ...props}) => <ol style={{ marginBottom: '12pt', paddingLeft: '24pt' }} {...props} />,
-              li: ({node, ...props}) => <li style={{ marginBottom: '6pt', lineHeight: '1.6' }} {...props} />,
+              h1: ({node, ...props}) => <h1 style={{ fontSize: '24pt', fontWeight: 'bold', marginBottom: '16pt', marginTop: '24pt', pageBreakAfter: 'avoid', breakAfter: 'avoid', breakInside: 'avoid-page' }} {...props} />,
+              h2: ({node, ...props}) => <h2 style={{ fontSize: '18pt', fontWeight: 'bold', marginBottom: '14pt', marginTop: '20pt', pageBreakAfter: 'avoid', breakAfter: 'avoid', breakInside: 'avoid-page' }} {...props} />,
+              h3: ({node, ...props}) => <h3 style={{ fontSize: '14pt', fontWeight: 'bold', marginBottom: '12pt', marginTop: '16pt', pageBreakAfter: 'avoid', breakAfter: 'avoid', breakInside: 'avoid-page' }} {...props} />,
+              p: ({node, ...props}) => <p style={{ marginBottom: '12pt', textAlign: 'justify', lineHeight: '1.6', pageBreakInside: 'avoid', breakInside: 'avoid-page' }} {...props} />,
+              ul: ({node, ...props}) => <ul style={{ marginBottom: '12pt', paddingLeft: '24pt', pageBreakInside: 'avoid', breakInside: 'avoid-page' }} {...props} />,
+              ol: ({node, ...props}) => <ol style={{ marginBottom: '12pt', paddingLeft: '24pt', pageBreakInside: 'avoid', breakInside: 'avoid-page' }} {...props} />,
+              li: ({node, ...props}) => <li style={{ marginBottom: '6pt', lineHeight: '1.6', pageBreakInside: 'avoid', breakInside: 'avoid-page' }} {...props} />,
               strong: ({node, ...props}) => <strong style={{ fontWeight: 'bold' }} {...props} />,
               em: ({node, ...props}) => <em style={{ fontStyle: 'italic' }} {...props} />,
             }}
