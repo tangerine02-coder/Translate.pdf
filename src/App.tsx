@@ -116,7 +116,7 @@ export default function App() {
         ? 'Wyekstrahuj język niemiecki'
         : 'Wyekstrahuj język angielski';
 
-      const promptText = `Jesteś ekspertem w tłumaczeniu artykułów naukowych. Twoim zadaniem jest wyodrębnienie tekstu z PDF, pozbycie się śmieci oraz jego przetłumaczenie.\n\nZasady:\n1. WYCZYŚĆ ORYGINAŁ Z BŁĘDÓW OCR: ${langInstruction}. Zachowaj oryginalne słownictwo, ALE bezwzględnie usun "śmieci" z odczytu PDF, tzn. przypadkowe i niepotrzebne znaki matematyczne/techniczne (np. ucięte litery, symbole $, &, !, nawiasy, ułamki, numery potęg). Oczyść z nich tekst, by był naturalnie czytelny, płynny i ciągły.\n2. PRZETŁUMACZ: Przetłumacz doczyszczony tekst na język polski (naukowy, naturalny styl).\n3. POMIŃ BIBLIOGRAFIĘ: Nie uwzględniaj sekcji References/Bibliography/Literaturverzeichnis.\n4. PROSTE FORMATOWANIE: Nie używaj tabelek, znaczników kodu ani składni LaTeX. Używaj wyłącznie czystego tekstu ułożonego w akapity oraz głównych nagłówków.\n5. BARDZO WAŻNE: Zwróć wynik w dwóch częściach oddzielonych ciągiem znaków "===TRANSLATED===". Najpierw WYCZYSZCZONY oryginał, następnie "===TRANSLATED===", a pod spodem przetłumaczony tekst. Nie dodawaj niczego więcej.`;
+      const promptText = `Jesteś ekspertem w tłumaczeniu artykułów naukowych. Twoim zadaniem jest wyodrębnienie tekstu z PDF, pozbycie się śmieci oraz jego przetłumaczenie.\n\nZasady:\n1. WYCZYŚĆ ORYGINAŁ Z BŁĘDÓW OCR: ${langInstruction}. Zachowaj oryginalne słownictwo, ALE bezwzględnie usun "śmieci" z odczytu PDF, tzn. przypadkowe i niepotrzebne znaki matematyczne/techniczne (np. ucięte litery, symbole $, &, !, nawiasy, ułamki, numery potęg). Oczyść z nich tekst, by był naturalnie czytelny, płynny i ciągły.\n2. PRZETŁUMACZ WYLĄCZNIE NA POLSKI: Przetłumacz doczyszczony tekst NA JĘZYK POLSKI (naukowy, naturalny styl). Upewnij się, że nie zwracasz oryginalnego języka pod spodem znacznika. Tłumaczenie ma być bezwzględnie całkowicie po POLSKU.\n3. POMIŃ BIBLIOGRAFIĘ: Nie uwzględniaj sekcji References/Bibliography/Literaturverzeichnis.\n4. PROSTE FORMATOWANIE: Nie używaj tabelek, znaczników kodu ani składni LaTeX. Używaj wyłącznie czystego tekstu ułożonego w akapity oraz głównych nagłówków.\n5. BARDZO WAŻNE: Zwróć wynik w dwóch częściach oddzielonych ciągiem znaków "===TRANSLATED===". Najpierw WYCZYSZCZONY oryginał (np po angielsku), następnie DOKŁADNIE ciąg znaków "===TRANSLATED===", a pod spodem wyłącznie tekst PRZETŁUMACZONY NA JĘZYK POLSKI. Żadnych wstępów.`;
 
       let combinedOriginalArray: string[] = new Array(chunkCount).fill('');
       let combinedTranslatedArray: string[] = new Array(chunkCount).fill('');
@@ -177,8 +177,8 @@ export default function App() {
 
         if (responseText.includes('===TRANSLATED===')) {
           const parts = responseText.split('===TRANSLATED===');
-          original = parts[0].trim();
-          translated = parts[1].trim();
+          original = parts[0].replace(/^```[a-z]*\n/, '').replace(/\n```$/, '').trim();
+          translated = parts[1].replace(/^```[a-z]*\n/, '').replace(/\n```$/, '').trim();
         }
 
         combinedOriginalArray[i] = original;
@@ -623,6 +623,9 @@ export default function App() {
       {/* Off-screen div for PDF generation */}
       <div className="absolute left-[-9999px] top-[-9999px] w-[800px]">
         <div ref={markdownRef} className="p-8 bg-white text-black w-full" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12pt', lineHeight: '1.5' }}>
+          <div className="text-center mb-8 pb-4 border-b">
+            <h1 style={{ fontSize: '24pt', fontWeight: 'bold' }}>Tłumaczenie (PL)</h1>
+          </div>
           <Markdown
             components={{
               h1: ({node, ...props}) => <h1 style={{ fontSize: '24pt', fontWeight: 'bold', marginBottom: '16pt', marginTop: '24pt', pageBreakAfter: 'avoid', breakAfter: 'avoid' }} {...props} />,
