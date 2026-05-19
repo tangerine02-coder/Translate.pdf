@@ -207,6 +207,8 @@ export default function App() {
       // Handle ugly JSON error strings from Gemini API (like 429 Quota Exceeded)
       if (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
         errorMessage = "Przekroczono darmowy limit użycia dla tego modelu. Zmień 'Model Tłumacza' na 'Gemini 3 Flash Preview' (ma znacznie większe darmowe limity) lub spróbuj ponownie jutro.";
+      } else if (errorMessage.toLowerCase().includes('503') || errorMessage.toLowerCase().includes('high demand') || errorMessage.toLowerCase().includes('overloaded')) {
+        errorMessage = "Serwery Google są obecnie przeciążone. Odczekaj chwilę i spróbuj zgłosić żądanie ponownie lub zmień model.";
       } else if (errorMessage.includes('{')) {
         try {
           const parsed = JSON.parse(errorMessage.substring(errorMessage.indexOf('{')));
@@ -249,7 +251,7 @@ export default function App() {
       html2canvas:  { scale: 1.5, useCORS: true, logging: false, windowWidth: 800 },
       jsPDF:        { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const },
       // Specifically target text elements to push them to the next page instead of horizontally slicing them in half
-      pagebreak:    { mode: ['css', 'legacy'], avoid: ['p', 'h1', 'h2', 'h3', 'h4', 'li'] }
+      pagebreak:    { mode: ['css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
@@ -623,13 +625,13 @@ export default function App() {
         <div ref={markdownRef} className="p-8 bg-white text-black w-full" style={{ fontFamily: 'Arial, sans-serif', fontSize: '12pt', lineHeight: '1.5' }}>
           <Markdown
             components={{
-              h1: ({node, ...props}) => <h1 style={{ fontSize: '24pt', fontWeight: 'bold', marginBottom: '16pt', marginTop: '24pt', pageBreakInside: 'avoid', breakInside: 'avoid' }} {...props} />,
-              h2: ({node, ...props}) => <h2 style={{ fontSize: '18pt', fontWeight: 'bold', marginBottom: '14pt', marginTop: '20pt', pageBreakInside: 'avoid', breakInside: 'avoid' }} {...props} />,
-              h3: ({node, ...props}) => <h3 style={{ fontSize: '14pt', fontWeight: 'bold', marginBottom: '12pt', marginTop: '16pt', pageBreakInside: 'avoid', breakInside: 'avoid' }} {...props} />,
-              p: ({node, ...props}) => <p style={{ marginBottom: '12pt', textAlign: 'justify', pageBreakInside: 'avoid', breakInside: 'avoid' }} {...props} />,
+              h1: ({node, ...props}) => <h1 style={{ fontSize: '24pt', fontWeight: 'bold', marginBottom: '16pt', marginTop: '24pt', pageBreakAfter: 'avoid', breakAfter: 'avoid' }} {...props} />,
+              h2: ({node, ...props}) => <h2 style={{ fontSize: '18pt', fontWeight: 'bold', marginBottom: '14pt', marginTop: '20pt', pageBreakAfter: 'avoid', breakAfter: 'avoid' }} {...props} />,
+              h3: ({node, ...props}) => <h3 style={{ fontSize: '14pt', fontWeight: 'bold', marginBottom: '12pt', marginTop: '16pt', pageBreakAfter: 'avoid', breakAfter: 'avoid' }} {...props} />,
+              p: ({node, ...props}) => <p style={{ marginBottom: '12pt', textAlign: 'justify', lineHeight: '1.6' }} {...props} />,
               ul: ({node, ...props}) => <ul style={{ marginBottom: '12pt', paddingLeft: '24pt' }} {...props} />,
               ol: ({node, ...props}) => <ol style={{ marginBottom: '12pt', paddingLeft: '24pt' }} {...props} />,
-              li: ({node, ...props}) => <li style={{ marginBottom: '6pt', pageBreakInside: 'avoid', breakInside: 'avoid' }} {...props} />,
+              li: ({node, ...props}) => <li style={{ marginBottom: '6pt', lineHeight: '1.6' }} {...props} />,
               strong: ({node, ...props}) => <strong style={{ fontWeight: 'bold' }} {...props} />,
               em: ({node, ...props}) => <em style={{ fontStyle: 'italic' }} {...props} />,
             }}
