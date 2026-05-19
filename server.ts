@@ -59,43 +59,67 @@ async function startServer() {
       // Helper function to parse markdown into Notion blocks
       const parseMarkdownToBlocks = (md: string) => {
         if (!md) return [];
-        const paragraphs = md.split('\n\n').filter((p: string) => p.trim() !== '');
+        const lines = md.split('\n\n').filter((p: string) => p.trim() !== '');
         const blocks: any[] = [];
+        let currentParagraphGroup = '';
 
-        for (const p of paragraphs) {
-          let type = 'paragraph';
-          let content = p;
-
-          if (p.startsWith('# ')) { type = 'heading_1'; content = p.replace(/^#\s/, ''); }
-          else if (p.startsWith('## ')) { type = 'heading_2'; content = p.replace(/^##\s/, ''); }
-          else if (p.startsWith('### ')) { type = 'heading_3'; content = p.replace(/^###\s/, ''); }
-          else if (p.startsWith('#### ')) { type = 'heading_3'; content = p.replace(/^####\s/, ''); } // Notion doesn't have H4, map to H3
-          else if (p.startsWith('- ') || p.startsWith('* ')) { type = 'bulleted_list_item'; content = p.replace(/^[-*]\s/, ''); }
-
-          // Basic inline formatting: check if whole line is **bold**
-          let isBold = false;
-          if (content.startsWith('**') && content.endsWith('**')) {
-            isBold = true;
-            content = content.replace(/^\*\*(.*?)\*\*$/, '$1');
+        const flushParagraphGroup = () => {
+          if (currentParagraphGroup) {
+             const chunks = currentParagraphGroup.match(/.{1,2000}/gs) || [];
+             blocks.push({
+               object: 'block',
+               type: 'paragraph',
+               paragraph: {
+                 rich_text: chunks.map(chunk => ({ text: { content: chunk } }))
+               }
+             });
+             currentParagraphGroup = '';
           }
+        };
 
-          const chunks = content.match(/.{1,2000}/g) || [];
-          
-          for (let i = 0; i < chunks.length; i++) {
-            const chunk = chunks[i];
-            const currentType = i === 0 ? type : 'paragraph';
-            blocks.push({
-              object: 'block',
-              type: currentType,
-              [currentType]: {
-                rich_text: [{ 
-                  text: { content: chunk },
-                  annotations: { bold: isBold }
-                }]
-              }
-            });
+        for (const p of lines) {
+          // If it's a heading or list, we treat it as an isolated block
+          if (p.startsWith('#') || p.startsWith('- ') || p.startsWith('* ')) {
+            flushParagraphGroup();
+            
+            let type = 'paragraph';
+            let content = p;
+            let isBold = false;
+            
+            if (p.startsWith('# ')) { type = 'heading_1'; content = p.replace(/^#\s/, ''); }
+            else if (p.startsWith('## ')) { type = 'heading_2'; content = p.replace(/^##\s/, ''); }
+            else if (p.startsWith('### ')) { type = 'heading_3'; content = p.replace(/^###\s/, ''); }
+            else if (p.startsWith('#### ')) { type = 'heading_3'; content = p.replace(/^####\s/, ''); }
+            else if (p.startsWith('- ') || p.startsWith('* ')) { type = 'bulleted_list_item'; content = p.replace(/^[-*]\s/, ''); }
+
+            if (content.startsWith('**') && content.endsWith('**')) {
+              isBold = true;
+              content = content.replace(/^\*\*(.*?)\*\*$/, '$1');
+            }
+
+            const chunks = content.match(/.{1,2000}/gs) || [];
+            if (chunks.length > 0) {
+              blocks.push({
+                object: 'block',
+                type: type,
+                [type]: {
+                  rich_text: chunks.map(chunk => ({ 
+                    text: { content: chunk },
+                    annotations: { bold: isBold }
+                  }))
+                }
+              });
+            }
+          } else {
+            // It's a normal paragraph.
+            // If adding it exceeds 1500 chars (safe margin under 2000), flush the existing group first
+            if (currentParagraphGroup.length + p.length > 1500) {
+              flushParagraphGroup();
+            }
+            currentParagraphGroup += (currentParagraphGroup ? '\n\n' : '') + p;
           }
         }
+        flushParagraphGroup();
         return blocks;
       };
 
